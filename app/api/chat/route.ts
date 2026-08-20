@@ -1,14 +1,37 @@
 import { NextResponse } from "next/server"
 import { groq } from "@ai-sdk/groq"
 import { generateText } from "ai"
+import { z } from "zod"
+import { enforceRateLimit } from "@/lib/request-security"
+
+const chatRequestSchema = z.object({
+  message: z.string().trim().min(1).max(2_000),
+  prayerContext: z
+    .object({
+      title: z.string().max(300).optional(),
+      content: z.string().max(5_000).optional(),
+      scripture: z.string().max(1_000).optional(),
+      target_category: z.string().max(100).optional(),
+      topic_category: z.string().max(100).optional(),
+    })
+    .optional(),
+  history: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4_000) }))
+    .max(20)
+    .optional(),
+})
 
 export async function POST(req: Request) {
-  try {
-    const { message, prayerContext, history } = await req.json()
+  const rateLimitResponse = enforceRateLimit(req)
+  if (rateLimitResponse) return rateLimitResponse
 
-    if (!message) {
-      return NextResponse.json({ error: "메시지가 필요합니다." }, { status: 400 })
+  try {
+    const parsed = chatRequestSchema.safeParse(await req.json())
+    if (!parsed.success) {
+      return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 })
     }
+
+    const { message, prayerContext, history } = parsed.data
 
     // 기도 컨텍스트 정보 추출
     const contextInfo = prayerContext

@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server"
 import { groq } from "@ai-sdk/groq"
 import { generateText } from "ai"
+import { z } from "zod"
+import { enforceRateLimit } from "@/lib/request-security"
+
+const prayerRequestSchema = z.object({ prayerType: z.string().trim().min(1).max(200) })
 
 export async function POST(req: Request) {
-  try {
-    const { prayerType } = await req.json()
+  const rateLimitResponse = enforceRateLimit(req)
+  if (rateLimitResponse) return rateLimitResponse
 
-    if (!prayerType) {
-      return NextResponse.json({ error: "기도 유형이 필요합니다." }, { status: 400 })
+  try {
+    const parsed = prayerRequestSchema.safeParse(await req.json())
+    if (!parsed.success) {
+      return NextResponse.json({ error: "기도 유형이 올바르지 않습니다." }, { status: 400 })
     }
+
+    const { prayerType } = parsed.data
 
     const prompt = `
 당신은 성경 말씀을 기반으로 한국어 기도문을 작성해주는 기독교 기도 도우미입니다.

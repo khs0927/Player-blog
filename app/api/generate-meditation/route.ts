@@ -1,14 +1,30 @@
 import { NextResponse } from "next/server"
 import { groq } from "@ai-sdk/groq"
 import { generateText } from "ai"
+import { z } from "zod"
+import { enforceRateLimit } from "@/lib/request-security"
+
+const meditationRequestSchema = z.object({
+  prayer: z.object({
+    title: z.string().max(300).optional(),
+    content: z.string().min(1).max(5_000),
+    scripture: z.string().max(1_000).optional(),
+    target_category: z.string().max(100).optional(),
+    topic_category: z.string().max(100).optional(),
+  }),
+})
 
 export async function POST(req: Request) {
-  try {
-    const { prayer } = await req.json()
+  const rateLimitResponse = enforceRateLimit(req)
+  if (rateLimitResponse) return rateLimitResponse
 
-    if (!prayer) {
-      return NextResponse.json({ error: "기도문 정보가 필요합니다." }, { status: 400 })
+  try {
+    const parsed = meditationRequestSchema.safeParse(await req.json())
+    if (!parsed.success) {
+      return NextResponse.json({ error: "기도문 정보가 올바르지 않습니다." }, { status: 400 })
     }
+
+    const { prayer } = parsed.data
 
     const prompt = `
 당신은 성경 말씀을 기반으로 묵상 내용을 작성해주는 기독교 묵상 도우미입니다.
