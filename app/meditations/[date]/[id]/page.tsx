@@ -13,7 +13,9 @@ import { format, parse } from "date-fns"
 import { ko } from "date-fns/locale"
 
 export default function MeditationDetailPage() {
-  const params = useParams()
+  const params = useParams<{ id?: string | string[]; date?: string | string[] }>()
+  const prayerId = Array.isArray(params.id) ? params.id[0] : params.id
+  const dateStr = Array.isArray(params.date) ? params.date[0] : params.date
   const router = useRouter()
   const [prayer, setPrayer] = useState<any | null>(null)
   const [meditation, setMeditation] = useState<any | null>(null)
@@ -25,8 +27,10 @@ export default function MeditationDetailPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true)
-        const prayerId = params.id
-        const dateStr = params.date as string
+        if (!prayerId || !dateStr) {
+          setError("묵상 경로가 올바르지 않습니다.")
+          return
+        }
 
         // 테스트 ID인 경우 테스트 데이터 반환
         if (prayerId.startsWith("test-")) {
@@ -73,7 +77,7 @@ export default function MeditationDetailPage() {
     }
 
     fetchData()
-  }, [params.id, params.date])
+  }, [prayerId, dateStr])
 
   if (isLoading) {
     return (
@@ -109,7 +113,7 @@ export default function MeditationDetailPage() {
   }
 
   // 날짜 파싱
-  const dateObj = parse(params.date as string, "yyyy-MM-dd", new Date())
+  const dateObj = parse(dateStr ?? "", "yyyy-MM-dd", new Date())
   const formattedDate = format(dateObj, "yyyy년 MM월 dd일", { locale: ko })
 
   return (

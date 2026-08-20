@@ -14,7 +14,8 @@ import { formatDistanceToNow } from "date-fns"
 import { ko } from "date-fns/locale"
 
 export default function PrayerDetailPage() {
-  const params = useParams()
+  const params = useParams<{ id?: string | string[] }>()
+  const prayerId = Array.isArray(params.id) ? params.id[0] : params.id
   const router = useRouter()
   const [prayer, setPrayer] = useState<any | null>(null)
   const [additionalPrayers, setAdditionalPrayers] = useState<string[]>([])
@@ -28,7 +29,10 @@ export default function PrayerDetailPage() {
     const fetchPrayer = async () => {
       try {
         setIsLoading(true)
-        const prayerId = params.id
+        if (!prayerId) {
+          setError("기도 ID가 없습니다.")
+          return
+        }
 
         // 테스트 ID인 경우 테스트 데이터 반환
         if (prayerId.startsWith("prayer-")) {
@@ -94,7 +98,7 @@ export default function PrayerDetailPage() {
     }
 
     fetchPrayer()
-  }, [params.id])
+  }, [prayerId])
 
   // 추가 기도문 생성
   const generateAdditionalPrayer = async () => {
